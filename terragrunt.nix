@@ -88,7 +88,32 @@ let
           copy_terraform_lock_file = false;
           # Set TF_DATA_DIR similar to how terragrunt would to it but without stupidity.
           extra_arguments.TF_DATA_DIR = {
-            commands = [ "*" ];
+            commands = [
+              "apply"
+              "console"
+              "destroy"
+              "fmt"
+              "force-unlock"
+              "get"
+              "graph"
+              "import"
+              "init"
+              "login"
+              "logout"
+              "metadata"
+              "output"
+              "plan"
+              "providers"
+              "refresh"
+              "show"
+              "state"
+              "taint"
+              "test"
+              "untaint"
+              "validate"
+              "version"
+              "workspace"
+            ];
             env_vars.TF_DATA_DIR = ''''${get_env("PWD")}/${name}'';
           };
         };
