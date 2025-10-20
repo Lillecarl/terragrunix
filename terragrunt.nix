@@ -5,61 +5,53 @@
   ...
 }:
 let
-  terranix = builtins.fetchTree {
-    type = "github";
-    owner = "terranix";
-    repo = "terranix";
-    ref = "main";
-  };
-
   jsonType = (pkgs.formats.json { }).type;
 
-  # terranixType = lib.types.submodule (import "${terranix}/core/terraform-options.nix");
   terranixType = lib.types.submodule (
     { ... }:
     {
       options = {
-        # ephemeral = lib.mkOption {
-        #   type = jsonType;
-        #   default = { };
-        # };
-        # data = lib.mkOption {
-        #   type = jsonType;
-        #   default = { };
-        # };
+        ephemeral = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
+        data = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
         locals = lib.mkOption {
           type = jsonType;
           default = { };
           default = { };
         };
-        # import = lib.mkOption {
-        #   type = jsonType;
-        #   default = { };
-        # };
-        # module = lib.mkOption {
-        #   type = jsonType;
-        #   default = { };
-        # };
-        # output = lib.mkOption {
-        #   type = jsonType;
-        #   default = { };
-        # };
+        import = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
+        module = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
+        output = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
         provider = lib.mkOption {
           type = jsonType;
           default = { };
         };
-        # resource = lib.mkOption {
-        #   type = jsonType;
-        #   default = { };
-        # };
+        resource = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
         terraform = lib.mkOption {
           type = jsonType;
           default = { };
         };
-        # variable = lib.mkOption {
-        #   type = jsonType;
-        #   default = { };
-        # };
+        variable = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
       };
     }
   );
@@ -73,6 +65,10 @@ let
     {
       options = {
         terraform = lib.mkOption {
+          type = jsonType;
+          default = { };
+        };
+        remote_state = lib.mkOption {
           type = jsonType;
           default = { };
         };
@@ -91,11 +87,13 @@ let
           # This will never work, we must use Nix for modules
           copy_terraform_lock_file = false;
           # terranix generated config folder
-          source = pkgs.writeTextFile {
-            inherit name;
-            text = builtins.toJSON config.terranix;
-            destination = "/config.tf.json";
-          };
+          source = lib.mkDefault (
+            pkgs.writeTextFile {
+              inherit name;
+              text = builtins.toJSON (lib.filterAttrs (n: v: v != { }) config.terranix);
+              destination = "/config.tf.json";
+            }
+          );
         };
       };
     }
@@ -119,9 +117,15 @@ in
       files = lib.mapAttrs' (name: value: {
         name = "${name}/terragrunt.hcl.json";
         value = builtins.toJSON (
-          builtins.removeAttrs value [
-            "terranix"
-            "internal"
+          lib.pipe value [
+            (
+              x:
+              builtins.removeAttrs x [
+                "terranix"
+                "internal"
+              ]
+            )
+            (lib.filterAttrs (n: v: v != { }))
           ]
         );
       }) config.units;
