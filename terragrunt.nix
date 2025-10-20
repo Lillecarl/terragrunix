@@ -86,14 +86,11 @@ let
         terraform = {
           # This will never work, we must use Nix for modules
           copy_terraform_lock_file = false;
-          # terranix generated config folder
-          source = lib.mkDefault (
-            pkgs.writeTextFile {
-              inherit name;
-              text = builtins.toJSON (lib.filterAttrs (n: v: v != { }) config.terranix);
-              destination = "/config.tf.json";
-            }
-          );
+          # Set TF_DATA_DIR similar to how terragrunt would to it but without stupidity.
+          extra_arguments.TF_DATA_DIR = {
+            commands = [ "*" ];
+            env_vars.TF_DATA_DIR = ''''${get_env("PWD")}/${name}'';
+          };
         };
       };
     }
@@ -114,22 +111,52 @@ in
   config = {
     internal.terragruntDir = pkgs.writeMultipleFiles {
       name = "terragruntDir";
-      files = lib.mapAttrs' (name: value: {
-        name = "${name}/terragrunt.hcl.json";
-        value = builtins.toJSON (
-          lib.pipe value [
-            (
-              x:
-              builtins.removeAttrs x [
-                "terranix"
-                "internal"
-              ]
-            )
-            (lib.filterAttrs (n: v: v != { }))
-          ]
-        );
-      }) config.units;
+      files =
+        (lib.mapAttrs' (name: value: {
+          name = "${name}/terragrunt.hcl.json";
+          value = builtins.toJSON (
+            lib.pipe value [
+              (
+                x:
+                builtins.removeAttrs x [
+                  "terranix"
+                  "internal"
+                ]
+              )
+              (lib.filterAttrs (n: v: v != { }))
+            ]
+          );
+        }) config.units)
+        // (lib.mapAttrs' (name: value: {
+          name = "${name}/config.tf.json";
+          value = builtins.toJSON ((lib.filterAttrs (n: v: v != { })) value.terranix);
+        }) config.units);
     };
+    # internal.terragruntDir = pkgs.buildEnv {
+    #   name = "terragruntDir";
+    #   paths = lib.pipe config.units [
+    #     lib.attrsToList
+    #     (lib.map (
+    #       x:
+    #       pkgs.writeTextFile {
+    #         name = x.name;
+    #         text = builtins.toJSON (
+    #           lib.pipe x.value [
+    #             (
+    #               x:
+    #               builtins.removeAttrs x [
+    #                 "terranix"
+    #                 "internal"
+    #               ]
+    #             )
+    #             (lib.filterAttrs (n: v: v != { }))
+    #           ]
+    #         );
+    #         destination = "/${x.name}/terragrunt.hcl.json";
+    #       }
+    #     ))
+    #   ];
+    # };
     internal.script =
       pkgs.writeScriptBin "script" # bash
         ''
@@ -142,7 +169,8 @@ in
             PROJ=""
             ALL="--all"
           fi
-          export TG_DOWNLOAD_DIR=$PWD/.terragrunt
+          export TG_EXPERIMENT=symlinks
+          export TG_NO_AUTO_INIT=true
           ${lib.getExe pkgs.terragrunt} --working-dir=${config.internal.terragruntDir}/$PROJ $@ $ALL
         '';
   };
