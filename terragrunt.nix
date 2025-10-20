@@ -131,8 +131,15 @@ in
         ''
           #! ${pkgs.runtimeShell}
           set -x
+          PROJ=$1
+          ALL=""
+          shift
+          if test "$PROJ" = "all"; then
+            PROJ=""
+            ALL="--all"
+          fi
           export TG_DOWNLOAD_DIR=$PWD/.terragrunt
-          ${lib.getExe pkgs.terragrunt} --working-dir=${config.internal.terragruntDir} $@
+          ${lib.getExe pkgs.terragrunt} --working-dir=${config.internal.terragruntDir}/$PROJ $@ $ALL
         '';
   };
 }
