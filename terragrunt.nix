@@ -116,7 +116,7 @@ in
   config = {
     internal.terragruntDir = pkgs.writeMultipleFiles {
       name = "terragruntDir";
-      files = (lib.mapAttrs' (name: value: {
+      files = lib.mapAttrs' (name: value: {
         name = "${name}/terragrunt.hcl.json";
         value = builtins.toJSON (
           builtins.removeAttrs value [
@@ -124,9 +124,7 @@ in
             "internal"
           ]
         );
-      }) config.units) // {
-        "terragrunt.hcl.json" = builtins.toJSON {};
-      };
+      }) config.units;
     };
     internal.script =
       pkgs.writeScriptBin "script" # bash
