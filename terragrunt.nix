@@ -127,6 +127,9 @@ in
       type = lib.types.attrsOf unitType;
       default = { };
     };
+    providers = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+    };
     internal = lib.mkOption {
       type = lib.types.anything;
       default = { };
@@ -182,7 +185,21 @@ in
     #     ))
     #   ];
     # };
+
     internal.script =
+      let
+        registry = import ../registry { inherit pkgs; };
+        tofu = pkgs.opentofu.withPlugins (
+          p: with registry; [
+            hashicorp.local."2.5.3"
+          ]
+        );
+        tg = pkgs.terragrunt;
+        path = lib.makeBinPath [
+          tofu
+          tg
+        ];
+      in
       pkgs.writeScriptBin "script" # bash
         ''
           #! ${pkgs.runtimeShell}
@@ -196,7 +213,8 @@ in
           fi
           export TG_EXPERIMENT=symlinks
           export TG_NO_AUTO_INIT=true
-          ${lib.getExe pkgs.terragrunt} --working-dir=${config.internal.terragruntDir}/$PROJ $@ $ALL
+          export PATH=${path}:$PATH
+          terragrunt --working-dir=${config.internal.terragruntDir}/$PROJ $@ $ALL
         '';
   };
 }
